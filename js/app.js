@@ -566,6 +566,13 @@ function getCustomApiInfo(customApiIndex) {
 
 // 搜索功能 - 修改为支持多选API
 async function search() {
+    // 密码保护校验
+    if (window.isPasswordProtected && window.isPasswordVerified) {
+        if (window.isPasswordProtected() && !window.isPasswordVerified()) {
+            showPasswordModal && showPasswordModal();
+            return;
+        }
+    }
     const query = document.getElementById('searchInput').value.trim();
     
     if (!query) {
@@ -768,6 +775,13 @@ async function search() {
 
 // 显示详情 - 修改为支持自定义API
 async function showDetails(id, vod_name, sourceCode) {
+    // 密码保护校验
+    if (window.isPasswordProtected && window.isPasswordVerified) {
+        if (window.isPasswordProtected() && !window.isPasswordVerified()) {
+            showPasswordModal && showPasswordModal();
+            return;
+        }
+    }
     if (!id) {
         showToast('视频ID无效', 'error');
         return;
@@ -855,6 +869,13 @@ async function showDetails(id, vod_name, sourceCode) {
 
 // 更新播放视频函数，修改为在新标签页中打开播放页面，并保存到历史记录
 function playVideo(url, vod_name, episodeIndex = 0) {
+    // 密码保护校验
+    if (window.isPasswordProtected && window.isPasswordVerified) {
+        if (window.isPasswordProtected() && !window.isPasswordVerified()) {
+            showPasswordModal && showPasswordModal();
+            return;
+        }
+    }
     if (!url) {
         showToast('无效的视频链接', 'error');
         return;
@@ -876,6 +897,7 @@ function playVideo(url, vod_name, episodeIndex = 0) {
     }
     
     // 保存当前状态到localStorage，让播放页面可以获取
+    const currentVideoTitle = vod_name;
     localStorage.setItem('currentVideoTitle', currentVideoTitle);
     localStorage.setItem('currentEpisodeIndex', episodeIndex);
     localStorage.setItem('currentEpisodes', JSON.stringify(currentEpisodes));
@@ -888,7 +910,9 @@ function playVideo(url, vod_name, episodeIndex = 0) {
         url: url,
         episodeIndex: episodeIndex,
         sourceName: sourceName,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        // 重要：将完整的剧集信息也添加到历史记录中
+        episodes: currentEpisodes && currentEpisodes.length > 0 ? [...currentEpisodes] : []
     };
     
     // 保存到观看历史，添加sourceName

@@ -6,8 +6,9 @@
  */
 function isPasswordProtected() {
     // 检查页面上嵌入的环境变量
-    const passwordRequired = window.__ENV__ && window.__ENV__.PASSWORD && window.__ENV__.PASSWORD.trim() !== '';
-    return passwordRequired;
+    const pwd = window.__ENV__ && window.__ENV__.PASSWORD;
+    // 只有当密码 hash 存在且为64位（SHA-256十六进制长度）才认为启用密码保护
+    return typeof pwd === 'string' && pwd.length === 64 && !/^0+$/.test(pwd);
 }
 
 /**
@@ -38,24 +39,33 @@ function isPasswordVerified() {
     }
 }
 
+window.isPasswordProtected = isPasswordProtected;
+window.isPasswordVerified = isPasswordVerified;
+
 /**
- * 验证用户输入的密码是否正确
+ * 验证用户输入的密码是否正确（异步，使用SHA-256哈希）
  */
-function verifyPassword(password) {
-    // 检查密码是否匹配环境变量中设置的密码
-    const correctPassword = window.__ENV__ && window.__ENV__.PASSWORD;
-    const isValid = password === correctPassword;
-    
+async function verifyPassword(password) {
+    const correctHash = window.__ENV__ && window.__ENV__.PASSWORD;
+    if (!correctHash) return false;
+    const inputHash = await sha256(password);
+    const isValid = inputHash === correctHash;
     if (isValid) {
-        // 保存验证状态到localStorage
         const verificationData = {
             verified: true,
             timestamp: Date.now()
         };
         localStorage.setItem(PASSWORD_CONFIG.localStorageKey, JSON.stringify(verificationData));
     }
-    
     return isValid;
+}
+
+// SHA-256实现，可用Web Crypto API
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -107,18 +117,16 @@ function hidePasswordError() {
 }
 
 /**
- * 处理密码提交事件
+ * 处理密码提交事件（异步）
  */
-function handlePasswordSubmit() {
+async function handlePasswordSubmit() {
     const passwordInput = document.getElementById('passwordInput');
     const password = passwordInput ? passwordInput.value.trim() : '';
-    
-    if (verifyPassword(password)) {
+    if (await verifyPassword(password)) {
         hidePasswordError();
         hidePasswordModal();
     } else {
         showPasswordError();
-        // 清空密码输入框
         if (passwordInput) {
             passwordInput.value = '';
             passwordInput.focus();
@@ -127,7 +135,7 @@ function handlePasswordSubmit() {
 }
 
 /**
- * 初始化密码验证系统
+ * 初始化密码验证系统（需适配异步事件）
  */
 function initPasswordProtection() {
     if (!isPasswordProtected()) {
